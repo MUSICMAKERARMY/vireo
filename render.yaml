@@ -7,9 +7,9 @@ services:
     startCommand: npm start
     envVars:
       - key: DATABASE_URL
-        from: 
-          type: postgresql
+        fromDatabase:
           name: vireo-db
+          property: connectionString
       - key: JWT_ACCESS_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET
