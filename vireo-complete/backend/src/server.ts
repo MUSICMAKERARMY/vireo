@@ -35,6 +35,16 @@ app.use('/api/chats', chatRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/uploads', uploadRoutes);
+// Temporary seed endpoint – remove after use
+app.get('/api/seed', async (req, res) => {
+  const { execSync } = require('child_process');
+  try {
+    execSync('npx prisma db seed', { stdio: 'inherit', cwd: __dirname + '/..' });
+    res.json({ message: 'Seed complete ✅' });
+  } catch (err: any) {
+    res.status(500).json({ message: 'Seed failed', error: err.message });
+  }
+});
 app.use(errorHandler);
 
 setupSocket(io);
