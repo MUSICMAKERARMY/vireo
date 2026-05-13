@@ -6,8 +6,7 @@
   },
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "start": "tsx src/server.ts",
-    "postinstall": "npx prisma generate"
+    "start": "tsx src/server.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.10.0",
