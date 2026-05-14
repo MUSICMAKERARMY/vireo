@@ -11,17 +11,22 @@ export const useSocket = () => {
     updateMessageStatus,
     activeChatId,
   } = useChatStore();
-  const socketRef = useRef(getSocket());
   const typingTimeouts = useRef<Record<string, NodeJS.Timeout>>({});
 
   useEffect(() => {
-    const socket = socketRef.current;
+    const socket = getSocket();
 
-    socket.on('user_online', (userId: string) => addOnlineUser(userId));
-    socket.on('user_offline', (userId: string) => removeOnlineUser(userId));
+    socket.on('user_online', (userId: string) => {
+      addOnlineUser(userId);
+    });
+
+    socket.on('user_offline', (userId: string) => {
+      removeOnlineUser(userId);
+    });
 
     socket.on('new_message', (msg: any) => {
       addMessage(msg);
+      // Auto‑mark as seen if chat is open
       if (msg.chatId === useChatStore.getState().activeChatId) {
         socket.emit('message_seen', { messageId: msg.id, chatId: msg.chatId });
       }
@@ -37,7 +42,6 @@ export const useSocket = () => {
         const participant = chat.participants?.find((p: any) => p.userId === userId);
         const username = participant?.user?.username || 'Someone';
         setTypingUser(chatId, username);
-
         if (typingTimeouts.current[chatId]) clearTimeout(typingTimeouts.current[chatId]);
         typingTimeouts.current[chatId] = setTimeout(() => {
           setTypingUser(chatId, null);
@@ -47,6 +51,10 @@ export const useSocket = () => {
 
     socket.on('user_stop_typing', ({ chatId }: any) => {
       setTypingUser(chatId, null);
+      if (typingTimeouts.current[chatId]) {
+        clearTimeout(typingTimeouts.current[chatId]);
+        delete typingTimeouts.current[chatId];
+      }
     });
 
     return () => {
@@ -58,6 +66,4 @@ export const useSocket = () => {
       socket.off('user_stop_typing');
     };
   }, [addMessage, addOnlineUser, removeOnlineUser, setTypingUser, updateMessageStatus]);
-
-  return socketRef.current;
 };

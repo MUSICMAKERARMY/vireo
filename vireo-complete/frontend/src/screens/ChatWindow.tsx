@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import api from '../services/api';
 import { getSocket } from '../socket/socketClient';
 import { useChatStore } from '../store/chatStore';
+import { useAuthStore } from '../store/authStore';
 
 const ChatWindow = () => {
   const { id } = useParams<{ id: string }>();
@@ -12,9 +13,8 @@ const ChatWindow = () => {
   const typingUser = useChatStore((s) => s.typingUsers[id || ''] || '');
   const onlineUsers = useChatStore((s) => s.onlineUsers);
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
-  const currentUserId = useChatStore((s) => s.activeChatId); // placeholder, get actual user from auth
+  const currentUserId = useAuthStore((s) => s.userId);   // ✅ real user ID
 
-  // Find other participant for display
   const otherParticipant = useChatStore((s) => {
     const chat = s.chats.find((c) => c.id === id);
     if (!chat) return null;
@@ -55,31 +55,30 @@ const ChatWindow = () => {
     }, 1000);
   };
 
-  const sendMessage = async () => {
+  const sendMessage = () => {
     if (!newMsg.trim() || !id) return;
-    try {
-      const { data } = await api.post(`/messages`, { chatId: id, body: newMsg, type: 'TEXT' });
-      // Optimistic update? Already handled by socket
-      setMessages((prev) => [...prev, data]);
-      socketRef.current.emit('send_message', { chatId: id, body: newMsg, type: 'TEXT', replyToId: null });
-      setNewMsg('');
-    } catch (err) {
-      console.error('Failed to send message', err);
-    }
+    const socket = socketRef.current;
+    // Send message through socket – backend will create it
+    socket.emit('send_message', {
+      chatId: id,
+      body: newMsg,
+      type: 'TEXT',
+      replyToId: null,
+    });
+    setNewMsg('');
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'SENT': return '✓';
       case 'DELIVERED': return '✓✓';
-      case 'SEEN': return '✓✓'; // can add blue color
+      case 'SEEN': return '✓✓'; // blue color would be nice, but text works
       default: return '';
     }
   };
 
   return (
     <div className="h-screen flex flex-col">
-      {/* Chat header */}
       <div className="p-3 border-b border-white/5 flex items-center">
         <div className="w-8 h-8 rounded-full bg-primary/20 mr-3 flex items-center justify-center text-primary">
           {otherParticipant?.username?.[0]?.toUpperCase() || '?'}
@@ -94,10 +93,9 @@ const ChatWindow = () => {
         </div>
       </div>
 
-      {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4">
         {messages.map((msg) => {
-          const isMine = msg.senderId === currentUserId; // need actual userId from auth store
+          const isMine = msg.senderId === currentUserId || msg.sender?.id === currentUserId;
           return (
             <div key={msg.id} className={`mb-2 flex ${isMine ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-[70%] p-2 rounded-xl ${isMine ? 'bg-primary/20' : 'bg-glass'}`}>
@@ -114,7 +112,6 @@ const ChatWindow = () => {
         })}
       </div>
 
-      {/* Input */}
       <div className="p-4 border-t border-white/5 flex">
         <input
           className="flex-1 p-3 bg-surface rounded-l-full"

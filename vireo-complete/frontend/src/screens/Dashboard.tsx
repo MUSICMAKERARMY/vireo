@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useChatStore } from '../store/chatStore';
+import { useAuthStore } from '../store/authStore';
 import { useSocket } from '../hooks/useSocket';
 
 const Dashboard = () => {
@@ -8,23 +9,21 @@ const Dashboard = () => {
   const fetchChats = useChatStore((s) => s.fetchChats);
   const onlineUsers = useChatStore((s) => s.onlineUsers);
   const navigate = useNavigate();
+  const userId = useAuthStore((s) => s.userId);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
-  useSocket(); // activate socket listeners
+  useSocket();
 
   useEffect(() => {
-    const token = localStorage.getItem('accessToken');
-    if (!token) {
+    if (!isAuthenticated) {
       navigate('/login');
       return;
     }
     fetchChats();
-  }, [fetchChats, navigate]);
+  }, [fetchChats, isAuthenticated, navigate]);
 
   const getOtherParticipant = (chat: any) => {
-    // For direct chats, find the participant who isn't the current user
-    const currentUserId = chat.participants?.find((p: any) => p.userId !== 'me')?.userId; // Replace with actual current user ID from auth store
-    // Simple: return the first participant that is not the logged in user
-    return chat.participants?.find((p: any) => p.userId !== chat.participants[0].userId)?.user;
+    return chat.participants?.find((p: any) => p.userId !== userId)?.user;
   };
 
   return (
@@ -33,7 +32,7 @@ const Dashboard = () => {
         <h2 className="text-lg font-heading text-primary mb-4">Chats</h2>
         {chats.map((chat) => {
           const other = getOtherParticipant(chat);
-          const isOnline = other ? onlineUsers.includes(other.id) : false;
+          const isOnline = other && onlineUsers.includes(other.id);
           return (
             <Link
               key={chat.id}
