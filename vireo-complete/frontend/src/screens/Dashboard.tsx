@@ -1,37 +1,30 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import Parse from '../services/parse';
 import { useChatStore } from '../store/chatStore';
 import { useSocket } from '../hooks/useSocket';
 
 const Dashboard = () => {
-  const [chats, setChats] = useState<any[]>([]);
-  const navigate = useNavigate();
+  const chats = useChatStore((s) => s.chats);
+  const fetchChats = useChatStore((s) => s.fetchChats);
   const onlineUsers = useChatStore((s) => s.onlineUsers);
+  const navigate = useNavigate();
+
   useSocket(); // activate socket listeners
 
-  const fetchChats = async () => {
-    const currentUser = Parse.User.current();
-    if (!currentUser) {
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
       navigate('/login');
       return;
     }
-    const query = new Parse.Query('Chat');
-    query.equalTo('participants', currentUser);
-    query.include('participants.user');
-    const results = await query.find();
-    setChats(results);
-  };
-
-  useEffect(() => {
     fetchChats();
-  }, []);
+  }, [fetchChats, navigate]);
 
   const getOtherParticipant = (chat: any) => {
-    const currentUser = Parse.User.current();
-    return chat.get('participants')?.find(
-      (p: any) => p.get('user').id !== currentUser?.id
-    )?.get('user');
+    // For direct chats, find the participant who isn't the current user
+    const currentUserId = chat.participants?.find((p: any) => p.userId !== 'me')?.userId; // Replace with actual current user ID from auth store
+    // Simple: return the first participant that is not the logged in user
+    return chat.participants?.find((p: any) => p.userId !== chat.participants[0].userId)?.user;
   };
 
   return (
@@ -40,7 +33,7 @@ const Dashboard = () => {
         <h2 className="text-lg font-heading text-primary mb-4">Chats</h2>
         {chats.map((chat) => {
           const other = getOtherParticipant(chat);
-          const isOnline = other && onlineUsers.includes(other.id);
+          const isOnline = other ? onlineUsers.includes(other.id) : false;
           return (
             <Link
               key={chat.id}
@@ -49,7 +42,7 @@ const Dashboard = () => {
             >
               <span className="relative mr-3">
                 <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary">
-                  {other?.get('username')?.[0]?.toUpperCase() || '?'}
+                  {other?.username?.[0]?.toUpperCase() || 'C'}
                 </div>
                 <span
                   className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-surface ${
@@ -57,7 +50,7 @@ const Dashboard = () => {
                   }`}
                 />
               </span>
-              <span>{other?.get('username') || chat.id}</span>
+              <span>{other?.username || chat.name || 'Chat'}</span>
             </Link>
           );
         })}

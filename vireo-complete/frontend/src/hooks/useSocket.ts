@@ -17,29 +17,20 @@ export const useSocket = () => {
   useEffect(() => {
     const socket = socketRef.current;
 
-    // Online/offline
-    socket.on('user_online', (userId: string) => {
-      addOnlineUser(userId);
-    });
-    socket.on('user_offline', (userId: string) => {
-      removeOnlineUser(userId);
-    });
+    socket.on('user_online', (userId: string) => addOnlineUser(userId));
+    socket.on('user_offline', (userId: string) => removeOnlineUser(userId));
 
-    // New message
     socket.on('new_message', (msg: any) => {
       addMessage(msg);
-      // Auto-mark as seen if the chat is active
       if (msg.chatId === useChatStore.getState().activeChatId) {
         socket.emit('message_seen', { messageId: msg.id, chatId: msg.chatId });
       }
     });
 
-    // Message status updates (delivered/seen)
     socket.on('message_status', ({ messageId, status }: any) => {
       updateMessageStatus(messageId, status);
     });
 
-    // Typing indicators
     socket.on('user_typing', ({ chatId, userId }: any) => {
       const chat = useChatStore.getState().chats.find((c) => c.id === chatId);
       if (chat) {
@@ -47,7 +38,6 @@ export const useSocket = () => {
         const username = participant?.user?.username || 'Someone';
         setTypingUser(chatId, username);
 
-        // Clear typing after 2 seconds
         if (typingTimeouts.current[chatId]) clearTimeout(typingTimeouts.current[chatId]);
         typingTimeouts.current[chatId] = setTimeout(() => {
           setTypingUser(chatId, null);

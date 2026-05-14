@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { ChatService } from '../services/chatService';
+import api from '../services/api';
 
 interface ChatState {
   chats: any[];
@@ -25,7 +25,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setActiveChat: (id) => set({ activeChatId: id }),
 
   fetchChats: async () => {
-    const data = await ChatService.getChats();
+    const { data } = await api.get('/chats');
     set({ chats: data });
   },
 
@@ -33,13 +33,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const { chats } = get();
     const updated = chats.map((chat) => {
       if (chat.id === message.chatId) {
-        // Add message if not already present
         const exists = chat.messages?.some((m: any) => m.id === message.id);
         if (!exists) {
-          return {
-            ...chat,
-            messages: [...(chat.messages || []), message],
-          };
+          return { ...chat, messages: [...(chat.messages || []), message] };
         }
       }
       return chat;
@@ -51,9 +47,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   addOnlineUser: (id) =>
     set((state) => ({
-      onlineUsers: state.onlineUsers.includes(id)
-        ? state.onlineUsers
-        : [...state.onlineUsers, id],
+      onlineUsers: state.onlineUsers.includes(id) ? state.onlineUsers : [...state.onlineUsers, id],
     })),
 
   removeOnlineUser: (id) =>
@@ -63,10 +57,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   setTypingUser: (chatId, username) =>
     set((state) => ({
-      typingUsers: {
-        ...state.typingUsers,
-        [chatId]: username || '',
-      },
+      typingUsers: { ...state.typingUsers, [chatId]: username || '' },
     })),
 
   updateMessageStatus: (messageId, status) =>
